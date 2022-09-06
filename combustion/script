@@ -1,24 +1,52 @@
 #!/bin/bash
 # combustion: network
 SUSEConnect -r <LICENSE_KEY>  -e <SCC_EMAIL>
-
+SUSEConnect -p SUSE-MicroOS/5.2/x86_64 -r <LICENSE_KEY>
 # Install extra packages
 zypper -n install \
     tar \
     conmon \
     curl
 
-# Install updates
-## BEWARE: Updating SLE Micro during combustion might result in a new kernel being loaded with some kernel extensions necessary for K3S
-## If you DO need to upgrade SLE Micro during Combustion, you need a reboot directly after the first boot for the modules to load correctly and K3S to start correctly.
-# zypper -n up
+# Install yq (temporary)
+curl -sfL https://github.com/mikefarah/yq/releases/download/v4.27.3/yq_linux_amd64 > /tmp/yq
+chmod +x /tmp/yq
+
+# Create the wrapper, for easier debugging
+mv /tmp/kubectl /usr/local/bin/kubectl
+
+# Harvester Qemu Plugin
+zypper -n install qemu-guest-agent
+systemctl enable --now qemu-guest-agent
 
 # K3S Prep: Needed because /usr/local (which is the standard location for K3S is not mounted by default for this stage of Combustion)
 mount /dev/disk/by-label/ROOT -o subvol=@/usr/local /usr/local
+mount /dev/disk/by-label/ROOT -o subvol=@/root /root
 mount /dev/disk/by-label/ROOT -o subvol=@/var /var
 
-# Install K3S
-curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION=<K3S_VERSION> sh -
+# Create the mount directory
+[ -d /tmp/cidata ] || mkdir /tmp/cidata
+mount /dev/disk/by-label/cidata /tmp/cidata
 
+# Create the ssh key directory for root if non existent and add the key
+[ -d /root/.ssh ] || mkdir -pm700 /root/.ssh
+/tmp/yq '.ssh_authorized_keys[]' /tmp/cidata/user-data >> /root/.ssh/ssh_authorized_keys
+chmod 600 /root/.ssh/ssh_authorized_keys
+
+# Extract the install.sh
+/tmp/yq '.write_files[] | select(.path == "/usr/local/custom_script/install.sh") | .content' /tmp/cidata/user-data | base64 -d | gunzip > /tmp/install.sh
+
+# Set the hostname
+/tmp/yq '.hostname' /tmp/cidata/user-data > /etc/hostname
+
+# RKE2 Hardening
+useradd -r -c "etcd user" -s /sbin/nologin -M etcd -U
+sysctl -p /etc/sysctl.d/60-rke2-cis.conf
+
+# RKE2 Install
+sh /tmp/install.sh
+
+umount /tmp/cidata
 umount /usr/local
+umount /root
 umount /var

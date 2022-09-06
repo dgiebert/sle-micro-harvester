@@ -4,10 +4,46 @@ version: 1.3.0
 storage:
   files:
     - path: /root/.ssh/authorized_keys
-      contents:
-        inline: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCrO13CUFxoQ+DJQ6tDqKorbKqC0QGQWSmPEsYjLUKF0mbpk1LLiiEDhM1enEXJ7RXf0De5n6hnYeVgo1h2XiUmhfOOYhF23/GhLaFmMsu5heLH969IZpqh/17t/r//pONxt2mnkcCMmywptZ0PLXPjYfOIE8y87Q5gFw5APFmwvEUn0LxCK1odlDXWhedwLOtYjfFLNAowMaXDKvqZsPYow3EizDN64kIGwpIkBscqdZqi+vCBfFsr4tJg0jT2iVYu8tbf7sIK9y0on6/fQ1t9pAPCJbbSMBObns26ZLP2Ym0tXmgbCMHDEnWkjLUYr5XqOpc7f3SkYGb/JkNV5FmN"
       mode: 0600
       overwrite: true
+      contents:
+        inline: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP18+pjziEtp0oFyKZGRTCyaGDM2o3UoeXRpaY7962aP"
+
+    - path: /etc/sysctl.d/60-rke2-cis.conf
+      mode: 0600
+      overwrite: true
+      contents:
+        inline: |
+          vm.panic_on_oom=0
+          vm.overcommit_memory=1
+          kernel.panic=10
+          kernel.panic_on_oops=1
+
+    - path: /etc/rancher/rke2/config.yaml
+      mode: 0644
+      contents:
+        inline: |
+          secrets-encryption: "true"
+          profile: "cis-1.6"
+          protect-kernel-defaults: "true"
+          kube-apiserver-arg:
+          - "--tls-cipher-suites=TLS_AES_128_GCM_SHA256,TLS_AES_256_GCM_SHA384,TLS_CHACHA20_POLY1305_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA,TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,TLS_RSA_WITH_3DES_EDE_CBC_SHA,TLS_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_128_GCM_SHA256,TLS_RSA_WITH_AES_256_CBC_SHA,TLS_RSA_WITH_AES_256_GCM_SHA384"
+          kubelet-arg:
+          - "--tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_RSA_WITH_AES_256_GCM_SHA384,TLS_RSA_WITH_AES_128_GCM_SHA256"
+          - "--event-qps=0"
+          node-label:
+          - "env=dev"
+          selinux: "true"
+          cni: "calico"
+
+    # Will move this wrapper during combustion
+    - path: /tmp/kubectl
+      mode: 0755
+      contents:
+        inline: |
+          #!/bin/sh
+          KUBECONFIG=/etc/rancher/rke2/rke2.yaml /var/lib/rancher/rke2/bin/kubectl $@
+
 passwd:
   users:
     - name: root

@@ -1,4 +1,6 @@
-# Using Combustion and Ignition during a SLE Micro bootstrapping
+# SLE Micro with Combustion and Ignition for Harvester
+
+This is a fork uses the same ideas as [belgaied2/sle-micro-ignition-tests](https://github.com/belgaied2/sle-micro-ignition-tests) but is aimed to solve the missing cloud-init so SLE Micro can be used with Harvester.
 
 ## Introduction
 
@@ -14,7 +16,7 @@ There are two possibilities to configure a RAW SLE Micro installation:
 
 ### Ignition
 
-Ignition is basically a JSON file that is similar in function to "Cloudinit", it has a limited set of capabilites but can be used to bootstrap single things like users and storage configuration. However, it is not possible to install Packages during bootstrapping using Ignition. Additional Combustion configuration is needed for that.
+Ignition is basically a JSON file that is similar in function to "Cloud-init", it has a limited set of capabilites but can be used to bootstrap single things like users and storage configuration. However, it is not possible to install Packages during bootstrapping using Ignition. Additional Combustion configuration is needed for that.
 
 Since JSON is not easily "human-writable", it is recommended to create an ignition file first in YAML and then use a specific conversion tool called `butane` to transform YAML into JSON.
 More on the procedure [here](https://documentation.suse.com/sle-micro/5.0/single-html/SLE-Micro-installation/index.html#sec-slem-image-deployment).
@@ -80,6 +82,15 @@ Automatic creation can be done using the provided script `./generate.sh` which w
 ./generate.sh -r <LICENSE_KEY> -e <SCC_EMAIL> -v <K3S_VERSION>
 LICENSE_KEY=<LICENSE_KEY> SCC_EMAIL=<SCC_EMAIL> K3S_VERSION=<K3S_VERSION> ./generate.sh
 ```
+
+### Cloud Init
+Currently SLE Micro does not use "Cloud-init" and therefore cannot be automatically provisioned using Harvester. To fix this the combustion is used to extract
+the following information from the `user-data` provided:
+- hostname
+- ssh-keys (will be used for the root user)
+- install.sh (will be used to provision the node)
+
+This is done using `yq` in combination with mount the cloud-init disk
 
 ## Booting SLE Micro
 Now that you have the RAW image and the IMG image at your disposal, you either flash those into physical disks or mount them as volume in your virtualization environment for SLE Micro to bootstrap automatically.
